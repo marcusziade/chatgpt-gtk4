@@ -153,6 +153,7 @@ func (a *App) createMainWindow() {
 	a.win.SetDefaultSize(1200, 800)
 
 	mainBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	mainBox.SetHExpand(true)
 
 	header := gtk.NewHeaderBar()
 	a.modelCombo = a.createModelSelector()
@@ -166,11 +167,14 @@ func (a *App) createMainWindow() {
 
 	paned := gtk.NewPaned(gtk.OrientationHorizontal)
 	paned.SetPosition(600)
+	paned.SetHExpand(true)
 
 	chatBox := a.createChatView()
+	chatBox.SetSizeRequest(400, -1)
 	paned.SetStartChild(chatBox)
 
 	imageBox := a.createImageView()
+	imageBox.SetSizeRequest(400, -1)
 	paned.SetEndChild(imageBox)
 
 	mainBox.Append(paned)
@@ -211,27 +215,44 @@ func (a *App) createChatView() *gtk.Box {
 	box.SetMarginBottom(8)
 	box.SetMarginStart(8)
 	box.SetMarginEnd(8)
+	box.SetHExpand(true)
 
 	a.chatScroll = gtk.NewScrolledWindow()
 	a.chatHistory = gtk.NewBox(gtk.OrientationVertical, 8)
+	a.chatHistory.SetHExpand(true)
 	a.chatScroll.SetChild(a.chatHistory)
 	a.chatScroll.SetVExpand(true)
+	a.chatScroll.SetHExpand(true)
 
 	a.loadChatHistory()
 
 	inputBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	inputBox.SetHExpand(true)
 
 	a.chatInput = gtk.NewTextView()
 	a.chatInput.SetWrapMode(gtk.WrapWord)
 	a.chatInput.SetAcceptsTab(false)
 	a.chatInput.SetVExpand(false)
+	a.chatInput.SetHExpand(true)
+
 	inputScroll := gtk.NewScrolledWindow()
 	inputScroll.SetChild(a.chatInput)
 	inputScroll.SetVExpand(false)
+	inputScroll.SetHExpand(true)
 	inputScroll.SetSizeRequest(-1, 80)
 
 	sendButton := gtk.NewButtonWithLabel("Send")
 	sendButton.ConnectClicked(a.onSendMessage)
+
+	eventController := gtk.NewEventControllerKey()
+	a.chatInput.AddController(eventController)
+	eventController.ConnectKeyPressed(func(keyval uint, keycode uint, state gdk.ModifierType) bool {
+		if keyval == gdk.KEY_Return && (state&gdk.ControlMask) != 0 {
+			sendButton.Activate()
+			return true
+		}
+		return false
+	})
 
 	inputBox.Append(inputScroll)
 	inputBox.Append(sendButton)
@@ -299,7 +320,14 @@ func (a *App) onSendMessage() {
 		return
 	}
 
-	a.addMessageToUI("user", text)
+	userLabel := gtk.NewLabel(fmt.Sprintf("user: %s", text))
+	userLabel.SetHAlign(gtk.AlignStart)
+	userLabel.SetWrap(true)
+	userLabel.SetSelectable(true)
+	userLabel.SetMarginStart(8)
+	userLabel.SetMarginEnd(8)
+	a.chatHistory.Append(userLabel)
+
 	buffer.SetText("")
 
 	_, err := a.db.Exec("INSERT INTO messages (role, content) VALUES (?, ?)", "user", text)
@@ -307,6 +335,17 @@ func (a *App) onSendMessage() {
 		a.setStatus("Error saving message")
 		return
 	}
+
+	assistantLabel := gtk.NewLabel("assistant: ")
+	assistantLabel.SetHAlign(gtk.AlignStart)
+	assistantLabel.SetWrap(true)
+	assistantLabel.SetSelectable(true)
+	assistantLabel.SetMarginStart(8)
+	assistantLabel.SetMarginEnd(8)
+	a.chatHistory.Append(assistantLabel)
+
+	adjustment := a.chatScroll.VAdjustment()
+	adjustment.SetValue(adjustment.Upper())
 
 	go func() {
 		ctx := context.Background()
@@ -324,7 +363,10 @@ func (a *App) onSendMessage() {
 				response += evt.Choices[0].Delta.Content
 				// Update UI in main thread
 				glib.IdleAdd(func() {
-					a.addMessageToUI("assistant", response)
+					assistantLabel.SetText(fmt.Sprintf("assistant: %s", response))
+					// Scroll to bottom while streaming
+					adjustment := a.chatScroll.VAdjustment()
+					adjustment.SetValue(adjustment.Upper())
 				})
 			}
 		}
