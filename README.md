@@ -1,4 +1,5 @@
 # ChatGPT-gtk4
+![chatgpt-gtk4](https://github.com/user-attachments/assets/4aac7e7b-b02a-415f-ad6a-8bdd9584653b)
 
 
 > [!WARNING]
