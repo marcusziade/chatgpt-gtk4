@@ -37,12 +37,8 @@ type App struct {
 	db           *sql.DB
 }
 
-// Run starts the application
 func (a *App) Run() int {
-	// Set up cleanup on exit
 	a.ConnectShutdown(a.cleanup)
-
-	// Run the application
 	return a.Application.Run(os.Args)
 }
 
@@ -103,11 +99,10 @@ func (a *App) configDir() string {
 }
 
 func (a *App) showAPIKeyDialog() {
-	// Create a temporary invisible window to act as parent
 	tempWin := gtk.NewApplicationWindow(a.Application)
-	tempWin.SetDefaultSize(1, 1) // Minimal size
-	tempWin.SetOpacity(0)        // Make it invisible
-	tempWin.Show()               // Must show it to be a valid parent
+	tempWin.SetDefaultSize(1, 1)
+	tempWin.SetOpacity(0)
+	tempWin.Show()
 
 	dialog := gtk.NewDialog()
 	dialog.SetTitle("OpenAI API Key")
@@ -136,13 +131,12 @@ func (a *App) showAPIKeyDialog() {
 			option.WithAPIKey(key),
 		)
 		dialog.Close()
-		tempWin.Close() // Clean up the temporary window
+		tempWin.Close()
 		a.createMainWindow()
 	})
 
-	// Also handle dialog close/destroy
 	dialog.ConnectDestroy(func() {
-		tempWin.Close() // Ensure temporary window is cleaned up
+		tempWin.Close()
 	})
 
 	box.Append(label)
@@ -158,10 +152,8 @@ func (a *App) createMainWindow() {
 	a.win.SetTitle("OpenAI GTK Client")
 	a.win.SetDefaultSize(1200, 800)
 
-	// Main layout
 	mainBox := gtk.NewBox(gtk.OrientationVertical, 0)
 
-	// Header bar
 	header := gtk.NewHeaderBar()
 	a.modelCombo = a.createModelSelector()
 	a.tempScale = a.createTemperatureControl()
@@ -172,21 +164,17 @@ func (a *App) createMainWindow() {
 	header.PackEnd(settingsButton)
 	a.win.SetTitlebar(header)
 
-	// Content area
 	paned := gtk.NewPaned(gtk.OrientationHorizontal)
 	paned.SetPosition(600)
 
-	// Chat view
 	chatBox := a.createChatView()
 	paned.SetStartChild(chatBox)
 
-	// Image view
 	imageBox := a.createImageView()
 	paned.SetEndChild(imageBox)
 
 	mainBox.Append(paned)
 
-	// Status bar
 	a.statusBar = gtk.NewLabel("")
 	a.statusBar.SetHAlign(gtk.AlignStart)
 	a.statusBar.SetMarginStart(8)
@@ -224,16 +212,13 @@ func (a *App) createChatView() *gtk.Box {
 	box.SetMarginStart(8)
 	box.SetMarginEnd(8)
 
-	// Chat history
 	a.chatScroll = gtk.NewScrolledWindow()
 	a.chatHistory = gtk.NewBox(gtk.OrientationVertical, 8)
 	a.chatScroll.SetChild(a.chatHistory)
 	a.chatScroll.SetVExpand(true)
 
-	// Load chat history
 	a.loadChatHistory()
 
-	// Input area
 	inputBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
 
 	a.chatInput = gtk.NewTextView()
@@ -264,19 +249,16 @@ func (a *App) createImageView() *gtk.Box {
 	box.SetMarginStart(8)
 	box.SetMarginEnd(8)
 
-	// Image display
 	a.imageDisplay = gtk.NewPicture()
 	a.imageDisplay.SetSizeRequest(512, 512)
 	a.imageSpinner = gtk.NewSpinner()
 
-	// Prompt input
 	a.imagePrompt = gtk.NewEntry()
 	a.imagePrompt.SetPlaceholderText("Enter image prompt...")
 
 	generateButton := gtk.NewButtonWithLabel("Generate")
 	generateButton.ConnectClicked(a.onGenerateImage)
 
-	// Controls
 	controls := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	saveButton := gtk.NewButtonWithLabel("Save")
 	copyButton := gtk.NewButtonWithLabel("Copy")
@@ -320,14 +302,12 @@ func (a *App) onSendMessage() {
 	a.addMessageToUI("user", text)
 	buffer.SetText("")
 
-	// Save to database
 	_, err := a.db.Exec("INSERT INTO messages (role, content) VALUES (?, ?)", "user", text)
 	if err != nil {
 		a.setStatus("Error saving message")
 		return
 	}
 
-	// Send to OpenAI
 	go func() {
 		ctx := context.Background()
 		stream := a.client.Chat.Completions.NewStreaming(ctx, openai.ChatCompletionNewParams{
@@ -356,7 +336,6 @@ func (a *App) onSendMessage() {
 			return
 		}
 
-		// Save complete response to database
 		_, err := a.db.Exec("INSERT INTO messages (role, content) VALUES (?, ?)", "assistant", response)
 		if err != nil {
 			glib.IdleAdd(func() {
@@ -373,7 +352,7 @@ func (a *App) onGenerateImage() {
 	}
 
 	a.imageSpinner.Start()
-	a.imageDisplay.SetPaintable(nil) // Clear the current image
+	a.imageDisplay.SetPaintable(nil)
 
 	go func() {
 		ctx := context.Background()
@@ -425,14 +404,12 @@ func (a *App) onSaveImage() {
 		"_Cancel",
 	)
 
-	// Set up default name and file filter
 	dialog.SetCurrentName("generated-image.png")
 	filter := gtk.NewFileFilter()
 	filter.AddPattern("*.png")
 	filter.SetName("PNG images")
 	dialog.AddFilter(filter)
 
-	// Set default save location to Pictures directory
 	if homeDir, err := os.UserHomeDir(); err == nil {
 		picturesDir := filepath.Join(homeDir, "Pictures")
 		if _, err := os.Stat(picturesDir); err == nil {
@@ -441,7 +418,6 @@ func (a *App) onSaveImage() {
 		}
 	}
 
-	// Handle dialog response asynchronously
 	responseChan := make(chan int)
 	dialog.ConnectResponse(func(response int) {
 		responseChan <- response
@@ -464,7 +440,6 @@ func (a *App) onSaveImage() {
 				path += ".png"
 			}
 
-			// Copy the temporary file to the selected location
 			tempFile := filepath.Join(a.configDir(), "temp.png")
 			go func() {
 				err := a.copyImageFile(tempFile, path)
@@ -541,7 +516,6 @@ func (a *App) addMessageToUI(role, content string) {
 
 	a.chatHistory.Append(label)
 
-	// Scroll to bottom
 	adjustment := a.chatScroll.VAdjustment()
 	adjustment.SetValue(adjustment.Upper())
 }
@@ -565,13 +539,11 @@ func (a *App) setStatus(message string) {
 	a.statusBar.SetText(message)
 }
 
-// Cleanup resources when the application closes
 func (a *App) cleanup() {
 	if a.db != nil {
 		a.db.Close()
 	}
 
-	// Clean up temporary files
 	tempFile := filepath.Join(a.configDir(), "temp.png")
 	os.Remove(tempFile)
 }
