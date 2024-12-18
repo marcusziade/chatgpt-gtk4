@@ -201,8 +201,8 @@ func (a *App) createMainWindow() {
 
 func (a *App) createModelSelector() *gtk.ComboBoxText {
 	combo := gtk.NewComboBoxText()
-	combo.Append("gpt-4", "GPT-4")
-	combo.Append("gpt-3.5-turbo", "GPT-3.5 Turbo")
+	combo.Append("gpt-4o-mini", "gpt-4o-mini")
+	combo.Append("gpt-4o", "gpt-4o")
 	combo.SetActive(0)
 	return combo
 }
@@ -334,7 +334,7 @@ func (a *App) onSendMessage() {
 			Messages: openai.F([]openai.ChatCompletionMessageParamUnion{
 				openai.UserMessage(text),
 			}),
-			Model: openai.F(openai.ChatModelGPT4o),
+			Model: openai.F(openai.ChatModelGPT4oMini),
 		})
 
 		response := ""
@@ -379,7 +379,7 @@ func (a *App) onGenerateImage() {
 		ctx := context.Background()
 		result, err := a.client.Images.Generate(ctx, openai.ImageGenerateParams{
 			Prompt:         openai.String(prompt),
-			Model:          openai.F(openai.ImageModelDallE3),
+			Model:          openai.F(openai.ImageModelDallE2),
 			ResponseFormat: openai.F(openai.ImageGenerateParamsResponseFormatB64JSON),
 			N:              openai.Int(1),
 		})
