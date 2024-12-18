@@ -52,7 +52,7 @@ func New() *App {
 
 func (a *App) setupUI() {
 	if err := a.initDB(); err != nil {
-		a.showError("Database Error", err.Error())
+		fmt.Errorf("failed to initialize database: %w", err)
 		return
 	}
 
@@ -124,7 +124,7 @@ func (a *App) showAPIKeyDialog() {
 	button.ConnectClicked(func() {
 		key := entry.Text()
 		if err := keyring.Set("com.example.openai-gtk", "api-key", key); err != nil {
-			a.showError("Error", "Failed to save API key")
+			fmt.Errorf("failed to save API key: %w", err)
 			return
 		}
 		a.client = openai.NewClient(
@@ -560,21 +560,6 @@ func (a *App) addMessageToUI(role, content string) {
 
 	adjustment := a.chatScroll.VAdjustment()
 	adjustment.SetValue(adjustment.Upper())
-}
-
-func (a *App) showError(title, message string) {
-	// dialog := gtk.NewMessageDialog(
-	// 	a.win,
-	// 	gtk.DialogModal,
-	// 	gtk.MessageError,
-	// 	gtk.ButtonsClose,
-	// 	message,
-	// )
-	// dialog.SetTitle(title)
-	// dialog.ConnectResponse(func(response int) {
-	// 	dialog.Close()
-	// })
-	// dialog.Show()
 }
 
 func (a *App) setStatus(message string) {
