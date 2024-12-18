@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"chatgpt-gtk4/app"
+	"chatgpt-gtk4/internal/app"
 )
 
 func main() {
