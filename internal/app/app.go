@@ -103,10 +103,16 @@ func (a *App) configDir() string {
 }
 
 func (a *App) showAPIKeyDialog() {
+	// Create a temporary invisible window to act as parent
+	tempWin := gtk.NewApplicationWindow(a.Application)
+	tempWin.SetDefaultSize(1, 1) // Minimal size
+	tempWin.SetOpacity(0)        // Make it invisible
+	tempWin.Show()               // Must show it to be a valid parent
+
 	dialog := gtk.NewDialog()
 	dialog.SetTitle("OpenAI API Key")
 	dialog.SetModal(true)
-	dialog.SetTransientFor(&gtk.Window{Widget: a.win.Widget})
+	dialog.SetTransientFor(&tempWin.Window)
 	dialog.SetDefaultSize(400, 200)
 
 	box := gtk.NewBox(gtk.OrientationVertical, 8)
@@ -130,7 +136,13 @@ func (a *App) showAPIKeyDialog() {
 			option.WithAPIKey(key),
 		)
 		dialog.Close()
+		tempWin.Close() // Clean up the temporary window
 		a.createMainWindow()
+	})
+
+	// Also handle dialog close/destroy
+	dialog.ConnectDestroy(func() {
+		tempWin.Close() // Ensure temporary window is cleaned up
 	})
 
 	box.Append(label)
